@@ -6,10 +6,15 @@ With security controls, network isolation, and automatic cleanup
 import docker
 import logging
 import sys
+import os
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 import threading
 import time
+
+# Suppress docker library verbose errors on import
+logging.getLogger('docker').setLevel(logging.ERROR)
+logging.getLogger('urllib3').setLevel(logging.ERROR)
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +34,7 @@ class DockerManager:
     def __init__(self):
         self.client = None
         self.last_error = ""
-        self._ensure_connection()
+        # Don't connect on init - use lazy initialization
         
     def _ensure_connection(self):
         if self.client:
@@ -58,9 +63,7 @@ class DockerManager:
                     self.last_error = ""
                     break
                 except Exception as e:
-                    import traceback
-                    msg = f"Failed to connect to {ep}: {e}\n{traceback.format_exc()}"
-                    self.last_error += msg + "\n"
+                    self.last_error = f"Failed to connect to {ep}: {e}"
 
             if not self.client and sys.platform != 'win32':
                 try:
@@ -69,18 +72,14 @@ class DockerManager:
                     self.client = client
                     self.last_error = ""
                 except Exception as e:
-                    import traceback
-                    msg = f"Failed from_env: {e}\n{traceback.format_exc()}"
-                    self.last_error += msg + "\n"
+                    self.last_error = f"Failed from_env: {e}"
 
             if self.client:
                 self._ensure_networks()
                 logger.info("Docker connection established")
                 return True
         except Exception as e:
-            import traceback
-            err = f"Outer Exception in ensure_connection: {e}\n{traceback.format_exc()}"
-            self.last_error += err
+            self.last_error = f"Docker not available: {e}"
             logger.error(f"Docker not available: {e}")
 
         return False
