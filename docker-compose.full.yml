@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  # Main backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cyber_training_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - sqlite_data:/app
+      - openvpn_data:/etc/openvpn
+    environment:
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+      - VPN_SERVER_IP=${VPN_SERVER_IP:-10.10.10.1}
+      - OVPN_PORT=1194
+      - OVPN_PROTO=udp
+      - EASY_RSA_DIR=/etc/openvpn/easy-rsa
+      - OVPN_DIR=/etc/openvpn/client-configs
+      - LAB_SUBNET=10.10.10.0/24
+    networks:
+      - cyber_training_network
+      - lab_network
+    privileged: true
+    depends_on:
+      - db
+
+  # Frontend Next.js app
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.nextjs
+    container_name: cyber_training_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    networks:
+      - cyber_training_network
+    depends_on:
+      - backend
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    container_name: cyber_training_db
+    environment:
+      - POSTGRES_DB=cybertraining
+      - POSTGRES_USER=cyberuser
+      - POSTGRES_PASSWORD=cyberpass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cyber_training_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U cyberuser" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # OpenVPN Server Container
+  openvpn:
+    image: kylemanna/openvpn
+    container_name: cyber_training_vpn
+    ports:
+      - "1194:1194/udp"
+      - "1194:1194/tcp"
+    volumes:
+      - openvpn_data:/etc/openvpn
+    networks:
+      - lab_network
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - OVPN_NETWORK=10.8.0.0/24
+      - OVPN_SUBNET=10.10.10.0/24
+      - OVPN_SERVER=10.10.10.1
+    restart: unless-stopped
+
+  # Docker Host for Lab Machines
+  docker-host:
+    image: docker:24-dind
+    container_name: cyber_training_docker_host
+    privileged: true
+    volumes:
+      - docker_data:/var/lib/docker
+      - lab_images:/lab/images
+    networks:
+      - lab_network
+    environment:
+      - DOCKER_TLS_CERTDIR=
+    healthcheck:
+      test: [ "CMD", "docker", "info" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  sqlite_data:
+  postgres_data:
+  openvpn_data:
+  docker_data:
+  lab_images:
+
+
+networks:
+  cyber_training_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  # Lab network for vulnerable machines (10.10.10.x)
+  lab_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.10.10.0/24
+          gateway: 10.10.10.1

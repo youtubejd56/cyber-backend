@@ -1,0 +1,4 @@
+# This is a sample hash for a ZIP file password "hack"
+# Use zip2john on your actual ZIP file to generate the hash
+# Example: zip2john john_lab.zip > hash.txt
+# Then crack: john hash.txt --wordlist=rockyou.txt

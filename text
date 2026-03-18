@@ -1,0 +1,5 @@
+ <Routes>
+        <Route path="" element={<Navbar />} />
+        <Route path="/hero" element={<Hero />} />
+        <Route path="/home" element={<Home />} />
+</Routes>

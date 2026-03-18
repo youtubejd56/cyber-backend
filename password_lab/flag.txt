@@ -1,0 +1,1 @@
+CTF{p4ssw0rd_cr4ck3d_success}

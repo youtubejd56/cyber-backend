@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cyber_training_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - sqlite_data:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - cyber_training_network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.nextjs
+    container_name: cyber_training_frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    networks:
+      - cyber_training_network
+    depends_on:
+      - backend
+
+volumes:
+  sqlite_data:
+
+
+networks:
+  cyber_training_network:
+    driver: bridge

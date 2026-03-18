@@ -1,0 +1,5 @@
+# John the Ripper Hash File
+# This is a sample hash for the password "hack"
+# For the actual challenge, create a ZIP file with password "hack"
+
+$zip2$*0*1*0*71125f9a4e0c7e5f2d7c3b8a1e9f4d3c*683b*0**zip2$**08e2c0e8e0f0e2c3e1e0e1e1e1e1e1e1e0

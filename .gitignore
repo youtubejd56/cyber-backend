@@ -1,0 +1,1 @@
+-e "venv_new/\n__pycache__/\n*.pyc\ndb.sqlite3\nmedia/"  
