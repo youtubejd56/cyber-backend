@@ -6,6 +6,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 from django.conf import settings
+from PIL import Image, ImageDraw, ImageFont
 
 # Certificate template path - use static image from frontend
 TEMPLATE_FILENAME = "cybertraining_certificate.jpg"

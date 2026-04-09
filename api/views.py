@@ -1169,6 +1169,7 @@ def generate_certificate(request):
 def my_certificate(request):
     """Get user's certificate if exists"""
     from .models import Certificate
+    from .certificate_generator import ensure_certificate_image
     
     certificate = Certificate.objects.filter(user=request.user).first()
     
@@ -1177,6 +1178,8 @@ def my_certificate(request):
             'has_certificate': False,
             'message': 'No certificate yet. Complete all machines to get one!'
         })
+
+    certificate = ensure_certificate_image(certificate, request.user.username)
     
     return Response({
         'has_certificate': True,
@@ -1335,3 +1338,5 @@ def train_ml_model(request):
             'error': str(e),
             'trace': traceback.format_exc()
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

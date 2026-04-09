@@ -4,12 +4,20 @@ Generates certificates when users complete all machines
 """
 import os
 import uuid
+from pathlib import Path
 from datetime import datetime, timedelta
 from django.conf import settings
 from PIL import Image, ImageDraw, ImageFont
 
 # Certificate template path - use static image from frontend
 TEMPLATE_FILENAME = "cybertraining_certificate.jpg"
+
+
+def get_certificate_output_path(cert_id):
+    """Return the absolute filesystem path for a certificate image."""
+    cert_dir = Path(settings.MEDIA_ROOT) / "certificates"
+    cert_dir.mkdir(parents=True, exist_ok=True)
+    return cert_dir / f"{cert_id}.png"
 
 
 def generate_certificate_id():
@@ -102,10 +110,7 @@ def create_certificate(name, cert_id, output_path=None):
     
     # Save the certificate
     if output_path is None:
-        # Save to media/certificates folder
-        cert_dir = os.path.join(settings.MEDIA_ROOT, 'certificates')
-        os.makedirs(cert_dir, exist_ok=True)
-        output_path = os.path.join(cert_dir, f"{cert_id}.png")
+        output_path = str(get_certificate_output_path(cert_id))
     
     # Ensure directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -113,6 +118,32 @@ def create_certificate(name, cert_id, output_path=None):
     img.save(output_path, "PNG")
     
     return output_path
+
+
+def ensure_certificate_image(certificate, name=None):
+    """
+    Ensure the certificate PNG exists on disk.
+
+    Some older records point to a media path without a matching file. When that
+    happens, regenerate the image so the download URL does not 404.
+    """
+    if not certificate:
+        return None
+
+    cert_name = name or getattr(certificate.user, "username", "certificate")
+    relative_name = f"certificates/{certificate.certificate_id}.png"
+    absolute_path = get_certificate_output_path(certificate.certificate_id)
+
+    if os.path.exists(absolute_path):
+        if not certificate.certificate_image or certificate.certificate_image.name != relative_name:
+            certificate.certificate_image.name = relative_name
+            certificate.save(update_fields=["certificate_image"])
+        return certificate
+
+    create_certificate(cert_name, certificate.certificate_id, output_path=str(absolute_path))
+    certificate.certificate_image.name = relative_name
+    certificate.save(update_fields=["certificate_image"])
+    return certificate
 
 
 def generate_user_certificate(user, force=False):
@@ -148,7 +179,7 @@ def generate_user_certificate(user, force=False):
     # Check if certificate already exists
     existing_cert = Certificate.objects.filter(user=user).first()
     if existing_cert:
-        return existing_cert
+        return ensure_certificate_image(existing_cert, user.username)
     
     # Generate new certificate
     cert_id = generate_certificate_id()
@@ -163,10 +194,7 @@ def generate_user_certificate(user, force=False):
     
     # Generate certificate image
     try:
-        image_path = create_certificate(user.username, cert_id)
-        # Save relative path
-        certificate.certificate_image = f'certificates/{cert_id}.png'
-        certificate.save()
+        ensure_certificate_image(certificate, user.username)
     except Exception as e:
         print(f"Error generating certificate image: {e}")
     
